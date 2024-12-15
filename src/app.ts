@@ -2,14 +2,23 @@ import express, { Request, Response } from "express";
 import axios from "axios";
 
 const app = express();
+
+app.use(function (req, res, next) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
 const PORT = 8000;
 
 const JSON_SERVER = "http://localhost:9000/trips";
 
 interface Trip {
-  title: string;
-  description: string;
-  tags: string[];
+  title: string,
+  eid: number,
+  url: string,
+  description: string,
+  photos: string[],
+  tags: string[],
+  id: string
 }
 
 app.get("/", async (req: Request, res: Response): Promise<void> => {
@@ -22,23 +31,23 @@ app.get("/", async (req: Request, res: Response): Promise<void> => {
 });
 
 app.get("/api/trips", async (req: Request, res: Response): Promise<void> => {
-  const { title, description, tag } = req.query;
+  const { keyword } = req.query;
 
   try {
     const response = await axios.get<Trip[]>(JSON_SERVER);
     const trips = response.data;
-    if (!title && !description && !tag) {
-      res.status(200).json({ trips: trips });
+
+    if (!keyword || typeof keyword !== "string") {
+      res.status(200).json({ trips });
     } else {
+      const searchKeyword = keyword.toLowerCase();
       const filteredTrips = trips.filter((trip) => {
-        if (title) {
-          return trip.title.toLowerCase().includes(title as string);
-        } else if (description) {
-          return trip.description.toLowerCase().includes(description as string);
-        } else if (tag) {
-          return trip.tags.some((t) => t.toLowerCase().includes(tag as string));
-        }
+        const searchTitle = trip.title.toLowerCase().includes(searchKeyword);
+        const searchDescription = trip.description.toLowerCase().includes(searchKeyword);
+        const searchTag = trip.tags.some((tag) => tag.toLowerCase().includes(searchKeyword));
+        return searchTitle || searchDescription || searchTag;
       });
+
       res.status(200).json({ trips: filteredTrips });
     }
   } catch (error) {
